@@ -29,7 +29,7 @@ from common import (
 # ===========================================================
 # 실험 설정
 # ===========================================================
-EXP_NAME = "exp3_dropout"
+EXP_NAME = "exp4_weight_decay"
 
 USE_EARLY_STOPPING = True
 EARLY_STOPPING_PATIENCE = 5
@@ -37,7 +37,7 @@ EARLY_STOPPING_PATIENCE = 5
 USE_DROPOUT = True
 DROPOUT_P = 0.4
 
-USE_WEIGHT_DECAY = False
+USE_WEIGHT_DECAY = True
 WEIGHT_DECAY = 1e-4
 
 USE_WEIGHTED_LOSS = False
