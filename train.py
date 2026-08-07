@@ -9,7 +9,8 @@
 - exp4: USE_WEIGHT_DECAY = True
 - exp5: USE_WEIGHTED_LOSS = True
 - exp6: USE_BATCHNORM = True
-- exp7: 전부 True (최종 조합)
+- exp7: 전부 True + exp5/exp6에서 드러난 과교정/과소적합 문제를 표준적인 방법으로 보정
+    (WEIGHT_SMOOTHING="sqrt", DROPOUT_P=0.3, EPOCHS 상향 — 근거는 각 변수 옆 주석 참고)
 """
 
 import numpy as np
@@ -17,34 +18,43 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
-from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader
 
 from common import (
     DEVICE, CLASS_NAMES,
     load_dataframe, build_xy, WaferDataset, WaferCNN,
-    evaluate_metrics, log_experiment,
+    evaluate_metrics, log_experiment, get_class_weights,
 )
 
 # ===========================================================
 # 실험 설정
 # ===========================================================
-EXP_NAME = "exp5_weighted_loss"
+EXP_NAME = "exp7_final_tuned"
 
 USE_EARLY_STOPPING = True
 EARLY_STOPPING_PATIENCE = 5
 
 USE_DROPOUT = True
-DROPOUT_P = 0.4
+# exp3~exp6에서 0.4로 고정했으나, Weight Decay/BatchNorm/Weighted Loss까지 누적되며
+# 규제가 과해져 Train Acc가 70%대까지 떨어지는 과소적합이 관찰됨.
+# 다른 규제 기법들과 같이 쓰는 exp7에서는 0.3으로 낮춰 총 규제 강도를 재조정.
+DROPOUT_P = 0.3
 
 USE_WEIGHT_DECAY = True
 WEIGHT_DECAY = 1e-4
 
 USE_WEIGHTED_LOSS = True
+# exp5에서 sklearn 'balanced' 가중치를 그대로 썼더니 Scratch 등 소수 클래스에
+# 극단적으로 큰 가중치(약 50배 이상)가 걸려 다수 클래스(Loc, none)가 희생되는
+# 과교정이 발생. sqrt로 완화하는 것은 class-balanced loss에서 흔히 쓰는 표준적인
+# 방법으로, 소수 클래스를 여전히 우대하되 극단값만 눌러줌.
+WEIGHT_SMOOTHING = "sqrt"  # exp1~exp6은 "none"
 
-USE_BATCHNORM = False
+USE_BATCHNORM = True
 
-EPOCHS = 10
+# 규제가 exp1~exp6보다 늘어난 만큼 10 epoch로는 수렴이 덜 될 수 있어 상향.
+# Early Stopping이 켜져 있어 과적합 걱정 없이 필요한 만큼만 학습됨.
+EPOCHS = 25
 BATCH_SIZE = 64
 LR = 0.001
 RANDOM_STATE = 42
@@ -80,8 +90,7 @@ model = WaferCNN(use_dropout=USE_DROPOUT, dropout_p=DROPOUT_P,
 print(model)
 
 if USE_WEIGHTED_LOSS:
-    class_weights = compute_class_weight('balanced', classes=np.unique(y_train), y=y_train)
-    class_weights = torch.FloatTensor(class_weights).to(DEVICE)
+    class_weights = get_class_weights(y_train, smoothing=WEIGHT_SMOOTHING).to(DEVICE)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 else:
     criterion = nn.CrossEntropyLoss()
@@ -159,8 +168,10 @@ valid_metrics = evaluate_metrics(model, valid_loader, CLASS_NAMES, verbose=True)
 config = {
     "use_early_stopping": USE_EARLY_STOPPING,
     "use_dropout": USE_DROPOUT,
+    "dropout_p": DROPOUT_P if USE_DROPOUT else None,
     "use_weight_decay": USE_WEIGHT_DECAY,
     "use_weighted_loss": USE_WEIGHTED_LOSS,
+    "weight_smoothing": WEIGHT_SMOOTHING if USE_WEIGHTED_LOSS else None,
     "use_batchnorm": USE_BATCHNORM,
     "epochs_run": EPOCHS,
 }
