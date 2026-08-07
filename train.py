@@ -29,9 +29,9 @@ from common import (
 # ===========================================================
 # 실험 설정
 # ===========================================================
-EXP_NAME = "exp1_baseline"
+EXP_NAME = "exp2_early_stopping"
 
-USE_EARLY_STOPPING = False
+USE_EARLY_STOPPING = True
 EARLY_STOPPING_PATIENCE = 5
 
 USE_DROPOUT = False
