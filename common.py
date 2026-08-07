@@ -194,6 +194,21 @@ def evaluate_metrics(model, data_loader, class_names=CLASS_NAMES, verbose=True):
     }
 
 
+def get_class_weights(y_train, smoothing="none"):
+    """
+    클래스 가중치 계산. smoothing으로 극단적 가중치를 완화할 수 있음.
+    - "none": sklearn의 표준 balanced 가중치 그대로 (exp5에서 사용, 소수 클래스에 과도하게 큰 가중치)
+    - "sqrt": 가중치에 제곱근을 취해 완화 (효과는 유지하되 과교정 방지, 널리 쓰이는 표준적인 방법)
+    """
+    from sklearn.utils.class_weight import compute_class_weight
+    weights = compute_class_weight('balanced', classes=np.unique(y_train), y=y_train)
+
+    if smoothing == "sqrt":
+        weights = np.sqrt(weights)
+
+    return torch.FloatTensor(weights)
+
+
 def minor_recall_mean(recall_dict, minor_classes=MINOR_CLASSES):
     """클래스 분포 하위 3개(Near-full, Donut, Random) Recall 평균."""
     return float(np.mean([recall_dict[c] for c in minor_classes]))
