@@ -29,12 +29,12 @@ from common import (
 # ===========================================================
 # 실험 설정
 # ===========================================================
-EXP_NAME = "exp2_early_stopping"
+EXP_NAME = "exp3_dropout"
 
 USE_EARLY_STOPPING = True
 EARLY_STOPPING_PATIENCE = 5
 
-USE_DROPOUT = False
+USE_DROPOUT = True
 DROPOUT_P = 0.4
 
 USE_WEIGHT_DECAY = False
