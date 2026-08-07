@@ -10,6 +10,8 @@
 """
 
 import os
+import pickle
+import sys
 import numpy as np
 import pandas as pd
 import torch
@@ -17,6 +19,13 @@ import torch.nn as nn
 from skimage.transform import resize
 from torch.utils.data import Dataset
 from sklearn.metrics import recall_score, f1_score, classification_report
+
+# LSWMD.pkl이 구버전 pandas(pandas.indexes.base 경로)로 저장되어 있어서
+# 최신 pandas(pandas.core.indexes.base)에서 바로 못 읽는 문제 우회용 별칭 등록
+import pandas.core.indexes.base as _pd_indexes_base
+import pandas.core.indexes as _pd_indexes
+sys.modules.setdefault('pandas.indexes', _pd_indexes)
+sys.modules.setdefault('pandas.indexes.base', _pd_indexes_base)
 
 # ---------------------------------------------------------
 # 상수
@@ -37,6 +46,20 @@ MINOR_CLASSES = ['Near-full', 'Donut', 'Random']
 # ---------------------------------------------------------
 # 데이터 로드 & 전처리
 # ---------------------------------------------------------
+def _install_pandas_pickle_compat_shims():
+    """
+    오래된 pandas pickle이 참조하는 구버전 모듈 경로를 현재 pandas 3.x에 매핑.
+
+    LSWMD.pkl 같은 예전 pickle은 pandas 0.x/1.x 시절의 내부 경로를 포함할 수 있어
+    pandas 3.x에서 바로 읽으면 ModuleNotFoundError가 날 수 있다.
+    """
+    if "pandas.indexes" not in sys.modules or "pandas.indexes.base" not in sys.modules:
+        import pandas.core.indexes as pandas_indexes
+        import pandas.core.indexes.base as pandas_indexes_base
+        sys.modules.setdefault("pandas.indexes", pandas_indexes)
+        sys.modules.setdefault("pandas.indexes.base", pandas_indexes_base)
+
+
 def preprocess_wafer_map(wafer_map, target_size=(64, 64)):
     """
     웨이퍼 맵 이미지를 target_size로 리사이징.
@@ -51,7 +74,14 @@ def load_dataframe(pkl_path="./data/LSWMD.pkl"):
     """
     원본 pkl을 읽어 라벨 전처리까지 마친 DataFrame 반환.
     """
-    df = pd.read_pickle(pkl_path)
+    _install_pandas_pickle_compat_shims()
+    with open(pkl_path, "rb") as f:
+        try:
+            df = pickle.load(f)
+        except UnicodeDecodeError:
+            # 아주 오래된 pickle은 latin1 인코딩이 필요할 수 있다.
+            f.seek(0)
+            df = pickle.load(f, encoding="latin1")
 
     df = df.drop(['waferIndex', 'dieSize', 'lotName'], axis=1)
     df['failureType'] = df['failureType'].apply(lambda x: x[0][0] if len(x) > 0 else 'none')
