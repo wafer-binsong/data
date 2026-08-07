@@ -9,7 +9,6 @@
 - exp4: USE_WEIGHT_DECAY = True
 - exp5: USE_WEIGHTED_LOSS = True
 - exp6: USE_BATCHNORM = True
-- exp7: 전부 True (최종 조합)
 """
 
 import numpy as np
@@ -29,7 +28,7 @@ from common import (
 # ===========================================================
 # 실험 설정
 # ===========================================================
-EXP_NAME = "exp5_weighted_loss"
+EXP_NAME = "exp6_batchnorm"
 
 USE_EARLY_STOPPING = True
 EARLY_STOPPING_PATIENCE = 5
@@ -42,7 +41,7 @@ WEIGHT_DECAY = 1e-4
 
 USE_WEIGHTED_LOSS = True
 
-USE_BATCHNORM = False
+USE_BATCHNORM = True
 
 EPOCHS = 10
 BATCH_SIZE = 64
